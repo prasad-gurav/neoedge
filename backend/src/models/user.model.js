@@ -19,6 +19,11 @@ const userSchema = new mongoose.Schema(
       enum: ['ACTIVE', 'SUSPENDED'],
       default: 'ACTIVE',
     },
+    isSuperuser: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   { timestamps: true }
 );

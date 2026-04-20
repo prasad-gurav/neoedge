@@ -62,7 +62,9 @@ async function listByUser(req, res) {
   if (!user) {
     throw new AppError('User not found', 404, 'NOT_FOUND');
   }
-  const rows = await Account.find({ userId }).sort({ createdAt: -1 }).lean();
+  const rows = await Account.find({ userId, isSystem: { $ne: true } })
+    .sort({ createdAt: -1 })
+    .lean();
   res.json({
     data: rows.map((a) => ({
       id: a._id.toString(),

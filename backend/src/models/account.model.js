@@ -14,7 +14,7 @@ const accountSchema = new mongoose.Schema(
     },
     accountType: {
       type: String,
-      enum: ['CHECKING', 'SAVINGS'],
+      enum: ['CHECKING', 'SAVINGS', 'TREASURY'],
       default: 'CHECKING',
     },
     status: {
@@ -22,10 +22,15 @@ const accountSchema = new mongoose.Schema(
       enum: ['ACTIVE', 'FROZEN', 'CLOSED'],
       default: 'ACTIVE',
     },
+    isSystem: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   { timestamps: true }
 );
 
-accountSchema.index({ userId: 1, currency: 1 }, { unique: true });
+accountSchema.index({ userId: 1, currency: 1, accountType: 1 }, { unique: true });
 
 module.exports = mongoose.model('Account', accountSchema);

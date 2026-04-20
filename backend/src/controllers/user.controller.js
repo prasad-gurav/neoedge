@@ -26,6 +26,37 @@ async function register(req, res) {
     email: user.email,
     fullName: user.fullName,
     status: user.status,
+    isSuperuser: user.isSuperuser,
+    createdAt: user.createdAt,
+  });
+}
+
+async function login(req, res) {
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  const password = String(req.body?.password ?? '');
+  if (!email || !password) {
+    throw new AppError('email and password are required', 400, 'VALIDATION');
+  }
+
+  const user = await User.findOne({ email }).select('+passwordHash');
+  if (!user) {
+    throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
+  }
+  if (user.status !== 'ACTIVE') {
+    throw new AppError('Account is not active', 403, 'ACCOUNT_NOT_ACTIVE');
+  }
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) {
+    throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
+  }
+
+  res.json({
+    id: user._id.toString(),
+    email: user.email,
+    fullName: user.fullName,
+    status: user.status,
+    isSuperuser: user.isSuperuser,
     createdAt: user.createdAt,
   });
 }
@@ -40,6 +71,7 @@ async function getById(req, res) {
     email: user.email,
     fullName: user.fullName,
     status: user.status,
+    isSuperuser: user.isSuperuser,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   });
@@ -47,5 +79,6 @@ async function getById(req, res) {
 
 module.exports = {
   register,
+  login,
   getById,
 };
