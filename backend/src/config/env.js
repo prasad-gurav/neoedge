@@ -1,5 +1,8 @@
 'use strict';
 
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
 module.exports = {
 	nodeEnv: process.env.NODE_ENV || "development",
 	port: Number(process.env.PORT) || 3000,
