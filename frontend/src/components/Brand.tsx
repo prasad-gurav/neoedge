@@ -16,23 +16,17 @@ export function Brand({
   theme?: BrandTheme;
 }) {
   const isHero = theme === 'hero';
+  const markSize = size + 6;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div
-        style={{
-          width: size + 6,
-          height: size + 6,
-          borderRadius: 8,
-          background: isHero ? 'var(--color-lime)' : 'var(--color-primary)',
-          display: 'grid',
-          placeItems: 'center',
-          color: isHero ? 'var(--color-primary)' : 'var(--color-accent)',
-          fontWeight: 800,
-          fontSize: size - 6,
-        }}
-      >
-        N
-      </div>
+      <img
+        src="/favicon.svg"
+        width={markSize}
+        height={markSize}
+        alt=""
+        aria-hidden
+        style={{ display: 'block', flexShrink: 0, borderRadius: '22%' }}
+      />
       <span
         style={neoedgeTextStyle(
           size,
