@@ -1,12 +1,42 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  IconClock,
+  IconChevronRight,
+  IconInfo,
+  IllustrationBank,
+  IconSend,
+  IconTxIn,
+  IconTxOut,
+  IconWallet,
+} from '@/components/icons/DashboardIcons';
+import {
   useAppSelector,
   useGetAccountsByUserQuery,
   useGetLedgerBalanceQuery,
   useGetTransactionsByAccountQuery,
 } from '@/store';
 import { formatCurrencySymbol, formatMinor } from '@/utils/format';
+
+function PrimaryTotalBalance({ accountId, currency, empty }: { accountId: string; currency: string; empty: boolean }) {
+  const { data, isLoading } = useGetLedgerBalanceQuery(accountId, {
+    skip: empty || !accountId,
+  });
+  if (empty) {
+    return <p className="dash-stat__amount">{formatMinor(0, currency)}</p>;
+  }
+  const amount = isLoading ? '0' : (data?.balanceMinor ?? '0');
+  return (
+    <p className="dash-stat__amount">{formatMinor(amount, currency)}</p>
+  );
+}
+
+type AccountLite = {
+  id: string;
+  currency: string;
+  accountType: string;
+  status: string;
+};
 
 export function DashboardHome() {
   const user = useAppSelector((s) => s.session.user);
@@ -15,95 +45,97 @@ export function DashboardHome() {
   const { data: accountsData, isLoading: accountsLoading } =
     useGetAccountsByUserQuery(userId, { skip: !userId });
 
-  const accounts = useMemo(() => accountsData?.data ?? [], [accountsData]);
-  const primaryAccountId = accounts[0]?.id;
+  const accounts = useMemo(
+    () => (accountsData?.data ?? []) as AccountLite[],
+    [accountsData],
+  );
+  const primaryAccount = accounts[0];
+  const primaryAccountId = primaryAccount?.id;
 
   const { data: txData } = useGetTransactionsByAccountQuery(
     { accountId: primaryAccountId ?? '', limit: 8 },
-    { skip: !primaryAccountId }
+    { skip: !primaryAccountId },
   );
   const transactions = txData?.data ?? [];
+  const pendingCount = transactions.filter((t) => t.status === 'CREATED').length;
+  const displayCurrency = primaryAccount?.currency ?? 'INR';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <header className="dash-hero">
         <div>
-          <h1 style={{ fontSize: '1.6rem' }}>Balances</h1>
-          <p style={{ color: 'var(--color-text-muted)', marginTop: 4 }}>
-            See where your money is.
-          </p>
+          <h1>Balances</h1>
+          <p>See where your money is.</p>
         </div>
-        <Link to="/transfer" className="btn accent" style={{ height: 40 }}>
-          Send money →
+        <Link
+          to="/transfer"
+          className="btn--dash-cta"
+          style={{ textDecoration: 'none' }}
+        >
+          <IconSend size={18} />
+          Send money
+          <IconChevronRight size={16} style={{ marginLeft: 2, opacity: 0.85 }} />
         </Link>
       </header>
 
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
-          gap: 18,
-        }}
-      >
-        <div className="card" style={{ padding: 22 }}>
-          <div style={{ color: 'var(--color-text-muted)', fontSize: '.9rem' }}>
-            Total balance across accounts
+      <div className="dash-balance-row">
+        <div className="dash-stat dash-stat--total">
+          <div className="dash-stat--total__body">
+            <div className="dash-stat__kicker">
+              {accounts.length > 1 ? 'Primary account' : 'Total balance'}
+            </div>
+            <PrimaryTotalBalance
+              accountId={primaryAccountId ?? ''}
+              currency={displayCurrency}
+              empty={!primaryAccount}
+            />
+            {!primaryAccount && (
+              <p className="dash-stat__sub">Open an account to get started</p>
+            )}
+            {primaryAccount && (
+              <p className="dash-stat__sub">
+                {displayCurrency} · ending {primaryAccount.id.slice(-6)}
+                {accounts.length > 1 && (
+                  <span style={{ marginLeft: 6, opacity: 0.9 }}>
+                    · {accounts.length} accounts
+                  </span>
+                )}
+              </p>
+            )}
+            <div className="dash-ledger-hint">
+              <span className="dash-ic-muted">
+                <IconInfo size={16} />
+              </span>
+              <span>Calculated from the double-entry ledger</span>
+            </div>
           </div>
-          <TotalBalances accounts={accounts} />
-          <div
-            style={{
-              marginTop: 10,
-              color: 'var(--color-text-muted)',
-              fontSize: '.85rem',
-            }}
-          >
-            Calculated from the double-entry ledger
-          </div>
-        </div>
-        <div className="card" style={{ padding: 22 }}>
-          <div style={{ color: 'var(--color-text-muted)', fontSize: '.9rem' }}>
-            Pending transfers
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, marginTop: 6 }}>
-            {transactions.filter((t) => t.status === 'CREATED').length}
-          </div>
-          <div
-            style={{
-              marginTop: 8,
-              color: 'var(--color-text-muted)',
-              fontSize: '.85rem',
-            }}
-          >
-            Last {transactions.length} on primary account
+          <div className="dash-stat--total__art" aria-hidden>
+            <IllustrationBank />
           </div>
         </div>
-      </section>
+
+        <div className="dash-stat dash-stat--pending">
+          <div className="dash-stat--pending__top">
+            <div>
+              <div className="dash-stat__kicker">Pending transfers</div>
+              <p className="dash-pending__num">{pendingCount}</p>
+            </div>
+            <div className="dash-pending-art">
+              <IconClock size={48} />
+            </div>
+          </div>
+          <p className="dash-pending__note">
+            Last {Math.min(transactions.length, 8)} on primary account
+          </p>
+        </div>
+      </div>
 
       <section>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 12,
-          }}
-        >
-          <h2 style={{ fontSize: '1.05rem' }}>Your accounts</h2>
-          <Link
-            to="/accounts"
-            style={{
-              color: 'var(--color-primary)',
-              fontWeight: 600,
-              fontSize: '.9rem',
-            }}
-          >
-            Manage →
+        <div className="dash-section-head">
+          <h2>Your accounts</h2>
+          <Link to="/accounts" className="dash-link-more">
+            Manage accounts
+            <span aria-hidden> &gt;</span>
           </Link>
         </div>
 
@@ -117,20 +149,14 @@ export function DashboardHome() {
           <div className="card" style={{ padding: 18 }}>
             You don’t have any accounts yet.{' '}
             <Link to="/accounts" style={{ fontWeight: 600 }}>
-              Open one →
+              Open one
             </Link>
           </div>
         )}
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-            gap: 14,
-          }}
-        >
+        <div className="dash-accounts">
           {accounts.map((a) => (
-            <AccountCard
+            <AccountRow
               key={a.id}
               accountId={a.id}
               accountType={a.accountType}
@@ -141,9 +167,16 @@ export function DashboardHome() {
         </div>
       </section>
 
-      <section>
-        <h2 style={{ fontSize: '1.05rem', marginBottom: 12 }}>Transactions</h2>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <section id="transactions">
+        <div className="dash-section-head">
+          <h2>Transactions</h2>
+          {primaryAccountId && (
+            <Link to="/dashboard#transactions" className="dash-link-more">
+              View all
+            </Link>
+          )}
+        </div>
+        <div className="dash-tx">
           {transactions.length === 0 && (
             <div style={{ padding: 18, color: 'var(--color-text-muted)' }}>
               {primaryAccountId
@@ -154,50 +187,30 @@ export function DashboardHome() {
           {transactions.map((t) => {
             const outgoing = t.fromAccountId === primaryAccountId;
             return (
-              <div
-                key={t.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto auto',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '14px 18px',
-                  borderTop: '1px solid var(--color-border)',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600 }}>
+              <div key={t.id} className="dash-tx__row">
+                <div className="dash-tx__ic">
+                  {outgoing ? <IconTxOut size={20} /> : <IconTxIn size={20} />}
+                </div>
+                <div className="dash-tx__text">
+                  <div className="dash-tx__title">
                     {outgoing ? 'Sent to' : 'Received from'}{' '}
-                    <span style={{ color: 'var(--color-text-muted)' }}>
-                      ending{' '}
-                      {outgoing
-                        ? t.toAccountId.slice(-6)
-                        : t.fromAccountId.slice(-6)}
+                    <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                      ending {outgoing ? t.toAccountId.slice(-6) : t.fromAccountId.slice(-6)}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      color: 'var(--color-text-muted)',
-                      fontSize: '.85rem',
-                    }}
-                  >
-                    {t.status} ·{' '}
+                  <div className="dash-tx__meta">
+                    {t.status}
                     {t.createdAt
-                      ? new Date(t.createdAt).toLocaleString()
-                      : '—'}
+                      ? ` · ${new Date(t.createdAt).toLocaleString()}`
+                      : ''}
                   </div>
                 </div>
-                <div style={{ fontWeight: 700 }}>
+                <div
+                  className="dash-tx__amount"
+                  style={{ color: outgoing ? '#5c2e2b' : 'var(--color-text)' }}
+                >
                   {outgoing ? '-' : '+'}
                   {formatMinor(t.amountMinor, t.currency)}
-                </div>
-                <div
-                  style={{
-                    fontSize: '.78rem',
-                    color: 'var(--color-text-muted)',
-                  }}
-                >
-                  {t.currency}
                 </div>
               </div>
             );
@@ -208,59 +221,7 @@ export function DashboardHome() {
   );
 }
 
-type AccountLite = {
-  id: string;
-  currency: string;
-  accountType: string;
-  status: string;
-};
-
-function TotalBalances({ accounts }: { accounts: AccountLite[] }) {
-  if (accounts.length === 0) {
-    return (
-      <div style={{ fontSize: '2.4rem', fontWeight: 700, marginTop: 6 }}>
-        $0.00
-      </div>
-    );
-  }
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        marginTop: 6,
-      }}
-    >
-      {accounts.map((a) => (
-        <PerAccountBalance key={a.id} accountId={a.id} currency={a.currency} />
-      ))}
-    </div>
-  );
-}
-
-function PerAccountBalance({
-  accountId,
-  currency,
-}: {
-  accountId: string;
-  currency: string;
-}) {
-  const { data } = useGetLedgerBalanceQuery(accountId, { skip: !accountId });
-  const amount = data?.balanceMinor ?? '0';
-  return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-      <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>
-        {formatMinor(amount, currency)}
-      </div>
-      <div style={{ color: 'var(--color-text-muted)', fontSize: '.85rem' }}>
-        {currency} · ending {accountId.slice(-6)}
-      </div>
-    </div>
-  );
-}
-
-function AccountCard({
+function AccountRow({
   accountId,
   accountType,
   currency,
@@ -271,52 +232,43 @@ function AccountCard({
   currency: string;
   status: string;
 }) {
-  const { data } = useGetLedgerBalanceQuery(accountId, { skip: !accountId });
+  const { data, isLoading } = useGetLedgerBalanceQuery(accountId, {
+    skip: !accountId,
+  });
   return (
-    <Link
-      to="/accounts"
-      className="card"
-      style={{
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ fontWeight: 600 }}>
-          {accountType === 'SAVINGS' ? 'Savings' : 'Checking'}
+    <Link to="/accounts" className="dash-account-pill">
+      <div className="dash-account-pill__icon">
+        <IconWallet size={20} />
+      </div>
+      <div className="dash-account-pill__mid">
+        <div className="dash-account-pill__line1">
+          <span className="dash-account-pill__name">
+            {accountType === 'SAVINGS' ? 'Savings' : 'Checking'}
+          </span>
+          <span
+            className={
+              status === 'ACTIVE' ? 'dash-badge' : 'dash-badge dash-badge--frozen'
+            }
+          >
+            {status}
+          </span>
         </div>
-        <span
-          style={{
-            fontSize: '.72rem',
-            padding: '3px 8px',
-            borderRadius: 999,
-            background:
-              status === 'ACTIVE' ? 'rgba(46,125,79,.12)' : 'rgba(0,0,0,.06)',
-            color:
-              status === 'ACTIVE'
-                ? 'var(--color-success)'
-                : 'var(--color-text-muted)',
-            fontWeight: 600,
-          }}
+        <div className="dash-account-pill__bal">
+          {isLoading
+            ? '…'
+            : data
+              ? formatMinor(data.balanceMinor, currency)
+              : `${formatCurrencySymbol(currency)}0.00`}
+        </div>
+        <div
+          className="dash-stat__sub"
+          style={{ marginTop: 2, fontSize: '0.82rem' }}
         >
-          {status}
-        </span>
+          {currency} · ending {accountId.slice(-6)}
+        </div>
       </div>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-        {data
-          ? formatMinor(data.balanceMinor, currency)
-          : `${formatCurrencySymbol(currency)}0.00`}
-      </div>
-      <div style={{ color: 'var(--color-text-muted)', fontSize: '.8rem' }}>
-        {currency} · ending {accountId.slice(-6)}
+      <div className="dash-account-pill__end">
+        <IconChevronRight size={18} />
       </div>
     </Link>
   );
